@@ -72,7 +72,7 @@ kp 关键词
 
 ## 排查 `fetch failed` / 请求失败
 
-当前版本已改为 Node 原生 `http/https.request`，不再依赖 `fetch` 运行时行为。
+当前版本已改为 Node.js 内置 `http/https.request`，不再依赖 `fetch` 运行时行为。
 
 若仍失败，请按以下顺序排查：
 

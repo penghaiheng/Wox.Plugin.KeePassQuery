@@ -26,7 +26,7 @@ const CONFIG_DEFAULTS = {
   clearClipboardAfterCopyPassword: true,
   clearClipboardDelayMs: 10000
 }
-const MAX_DIAGNOSTIC_SNIPPET_LENGTH = 260
+const MAX_DIAGNOSTIC_CHARS = 260
 
 const CONFIG_KEYS = Object.keys(CONFIG_DEFAULTS)
 const STRING_KEYS = new Set([
@@ -65,7 +65,11 @@ function normalizeText(value) {
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value)
   }
-  return JSON.stringify(value)
+  try {
+    return JSON.stringify(value)
+  } catch (_error) {
+    return String(value)
+  }
 }
 
 function parseBooleanValue(value) {
@@ -197,9 +201,13 @@ function mergeConfig(woxSettings, fileConfig) {
     }
   }
 
-  merged.timeoutMs = Math.max(500, merged.timeoutMs || CONFIG_DEFAULTS.timeoutMs)
-  merged.maxResults = Math.max(1, merged.maxResults || CONFIG_DEFAULTS.maxResults)
-  merged.clearClipboardDelayMs = Math.max(500, merged.clearClipboardDelayMs || CONFIG_DEFAULTS.clearClipboardDelayMs)
+  const timeoutMs = merged.timeoutMs !== undefined ? merged.timeoutMs : CONFIG_DEFAULTS.timeoutMs
+  const maxResults = merged.maxResults !== undefined ? merged.maxResults : CONFIG_DEFAULTS.maxResults
+  const clearClipboardDelayMs = merged.clearClipboardDelayMs !== undefined ? merged.clearClipboardDelayMs : CONFIG_DEFAULTS.clearClipboardDelayMs
+
+  merged.timeoutMs = Math.max(500, timeoutMs)
+  merged.maxResults = Math.max(1, maxResults)
+  merged.clearClipboardDelayMs = Math.max(500, clearClipboardDelayMs)
 
   return merged
 }
@@ -467,7 +475,9 @@ function requestText(url, token, timeoutMs, rejectUnauthorized) {
 
 function parsePayloadFromResponse(response) {
   const bodyText = normalizeText(response.body)
-  const looksLikeJson = response.contentType.includes("application/json") || /^\s*[\[{]/.test(bodyText)
+  const hasJsonContentType = response.contentType.includes("application/json")
+  const contentTypeMissing = !response.contentType
+  const looksLikeJson = hasJsonContentType || (contentTypeMissing && /^\s*[\[{]/.test(bodyText))
 
   if (!looksLikeJson) {
     return bodyText
@@ -481,7 +491,11 @@ function parsePayloadFromResponse(response) {
 }
 
 function compactResponseSnippet(value) {
-  return normalizeText(value).replace(/\s+/g, " ").trim().slice(0, MAX_DIAGNOSTIC_SNIPPET_LENGTH)
+  const compact = normalizeText(value).replace(/\s+/g, " ").trim()
+  if (compact.length <= MAX_DIAGNOSTIC_CHARS) {
+    return compact
+  }
+  return `${compact.slice(0, MAX_DIAGNOSTIC_CHARS - 3)}...`
 }
 
 async function fetchRemotePayload(operation, url, config) {
@@ -516,7 +530,7 @@ async function fetchRemotePayload(operation, url, config) {
       error instanceof Error ? error.message : String(error),
       {
         ...baseDiagnostic,
-        error: error instanceof Error ? `${error.name}: ${error.message}` : String(error),
+        error: error instanceof Error ? error.message : String(error),
         cause: normalizeErrorCause(error)
       },
       error
