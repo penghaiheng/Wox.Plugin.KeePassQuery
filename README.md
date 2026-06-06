@@ -68,7 +68,7 @@ kp 关键词
 ## 结果与 Preview
 
 - 列表副标题会展示 User、URL、Group、Notes 摘要、匹配字段、字段数量
-- Preview 分块展示：基本信息 / Notes / Custom Fields / Extra Fields
+- Preview 使用 Markdown 展示，顺序为：Title / GroupPath / UserName / URL / Custom Fields / Notes
 
 ## 排查 `fetch failed` / 请求失败
 
