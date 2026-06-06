@@ -1,0 +1,10 @@
+{
+  "baseUrl": "https://127.0.0.1:8443",
+  "token": "replace-with-your-bearer-token",
+  "searchPath": "/search",
+  "passwordPathTemplate": "/entries/{uuid}/password",
+  "searchQueryParam": "term",
+  "timeoutMs": 4000,
+  "maxResults": 20,
+  "rejectUnauthorized": true
+}

@@ -1,0 +1,19 @@
+{
+  "Id": "8db0f056-216c-48ad-bf57-d5a7e7b0f5a1",
+  "TriggerKeywords": ["kp"],
+  "Name": "Remote Search",
+  "Description": "Search KeePass entries from a bearer-authenticated HTTPS API",
+  "Author": "penghaiheng",
+  "Version": "0.1.0",
+  "MinWoxVersion": "2.0.0",
+  "Runtime": "nodejs",
+  "Website": "https://github.com/penghaiheng/Wox.Plugin.RemoteSearch",
+  "Entry": "index.js",
+  "Icon": "relative:images/app.png",
+  "Features": [
+    {
+      "Name": "ignoreAutoScore"
+    }
+  ],
+  "SupportedOS": ["Windows"]
+}

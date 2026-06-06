@@ -1,0 +1,13 @@
+{
+  "name": "wox-plugin-remote-search",
+  "version": "0.1.0",
+  "description": "Wox plugin for bearer-authenticated remote KeePass search",
+  "main": "index.js",
+  "license": "MIT",
+  "dependencies": {
+    "@wox-launcher/wox-plugin": "^0.0.131"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
