@@ -140,3 +140,4 @@ npm install
 - 当前剪贴板实现依赖 Windows `clip.exe`
 - 搜索阶段不会批量请求密码接口
 - 插件不会输出 token 到 UI 或诊断日志
+- 已兼容 UTF-8 BOM（`utf-8-sig`）响应：会先按 UTF-8 解码并去除开头 BOM，再进行 JSON 解析

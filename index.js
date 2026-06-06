@@ -76,6 +76,29 @@ function normalizeText(value) {
   }
 }
 
+function stripUtf8BomBuffer(buffer) {
+  if (
+    Buffer.isBuffer(buffer)
+    && buffer.length >= 3
+    && buffer[0] === 0xef
+    && buffer[1] === 0xbb
+    && buffer[2] === 0xbf
+  ) {
+    return buffer.subarray(3)
+  }
+
+  return buffer
+}
+
+function decodeUtf8Sig(value) {
+  if (Buffer.isBuffer(value)) {
+    return stripUtf8BomBuffer(value).toString("utf8")
+  }
+
+  const text = normalizeText(value)
+  return text.replace(/^\uFEFF/, "")
+}
+
 function parseBooleanValue(value) {
   if (typeof value === "boolean") {
     return value
@@ -267,6 +290,7 @@ function buildDiagnosticText(diagnostic) {
     `timeoutMs: ${diagnostic.timeoutMs || ""}`,
     `rejectUnauthorized: ${diagnostic.rejectUnauthorized}`,
     `status: ${diagnostic.status || ""}`,
+    `contentType: ${diagnostic.contentType || ""}`,
     `error: ${diagnostic.error || ""}`,
     `cause: ${diagnostic.cause || ""}`,
     `responseSnippet: ${diagnostic.responseSnippet || ""}`
@@ -476,7 +500,8 @@ function requestText(url, token, timeoutMs, rejectUnauthorized) {
         })
 
         response.on("end", () => {
-          const body = Buffer.concat(chunks).toString("utf8")
+          const bodyBuffer = Buffer.concat(chunks)
+          const body = decodeUtf8Sig(bodyBuffer)
           resolveOnce({
             statusCode: response.statusCode || 0,
             statusMessage: response.statusMessage || "",
@@ -533,18 +558,35 @@ async function fetchRemotePayload(operation, url, config) {
 
   try {
     const response = await requestText(url, config.token, config.timeoutMs, config.rejectUnauthorized)
+    const statusText = `${response.statusCode} ${response.statusMessage}`.trim()
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw createRemoteError(
-        `HTTP ${response.statusCode} ${response.statusMessage}`.trim(),
+        `HTTP ${statusText}`,
         {
           ...baseDiagnostic,
-          status: `${response.statusCode} ${response.statusMessage}`.trim(),
+          status: statusText,
+          contentType: response.contentType,
           responseSnippet: compactResponseSnippet(response.body)
         }
       )
     }
 
-    return parsePayloadFromResponse(response)
+    try {
+      return parsePayloadFromResponse(response)
+    } catch (error) {
+      throw createRemoteError(
+        error instanceof Error ? error.message : String(error),
+        {
+          ...baseDiagnostic,
+          status: statusText,
+          contentType: response.contentType,
+          responseSnippet: compactResponseSnippet(response.body),
+          error: error instanceof Error ? error.message : String(error),
+          cause: normalizeErrorCause(error)
+        },
+        error
+      )
+    }
   } catch (error) {
     if (error && error.diagnostic) {
       throw error
