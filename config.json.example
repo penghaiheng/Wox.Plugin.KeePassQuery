@@ -8,6 +8,5 @@
   "maxResults": 20,
   "rejectUnauthorized": true,
   "clearClipboardAfterCopyPassword": true,
-  "clearClipboardDelayMs": 10000,
-  "autoCopySingleCustomField": false
+  "clearClipboardDelayMs": 10000
 }

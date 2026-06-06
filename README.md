@@ -1,80 +1,45 @@
 # Wox.Plugin.RemoteSearch
 
-一个基于 **Node.js / JavaScript** 的 Wox 插件，用于通过 **Bearer Token 认证的 HTTPS API** 搜索 KeePass 条目，并在需要时按条目 UUID 单独获取密码。
+一个基于 **Node.js / JavaScript** 的 Wox 插件：通过远程 API 搜索 KeePass 条目，并按 UUID 单独获取密码。
 
-这个项目的插件结构参考了 `qianlifeng/Wox.Plugin.Everything`，但实现方式更适合当前场景：
+## 当前版本能力
 
-- 不依赖本地 DLL
-- 不需要 TypeScript 编译
-- 直接使用纯 JavaScript
-- 专注于 **远程搜索 + 按需获取密码**
+- 支持 Wox 原生设置页（`plugin.json` 的 `SettingDefinitions`）
+- 配置读取优先级：**Wox 设置页 > `config.json` > 内置默认值**
+- 搜索接口：`GET {baseUrl}{searchPath}?{searchQueryParam}=...`
+- 密码接口：`GET {baseUrl}{passwordPathTemplate}`（模板内 `{uuid}` 自动替换）
+- 动作：
+  - `Enter`：复制用户名（缺失时回退 URL，再回退 UUID）
+  - `Ctrl+Enter`：获取并复制密码
+  - 复制 UUID / URL / 详情 / 自定义字段
+- 可选：复制密码后延时清空剪贴板
+- 失败时结果中显示可操作诊断信息，并支持一键复制诊断
 
-## v2.1 更新
+## 在 Wox 设置页配置（推荐）
 
-当前版本补充了以下内容：
+打开插件设置后可直接配置：
 
-- 新增插件图标文件 `images/app.svg`
-- `plugin.json` 图标路径已更新为 `relative:images/app.svg`
-- 版本提升到 `0.2.1`
+- `baseUrl`
+- `token`
+- `searchPath`
+- `passwordPathTemplate`
+- `searchQueryParam`
+- `timeoutMs`
+- `maxResults`
+- `rejectUnauthorized`
+- `clearClipboardAfterCopyPassword`
+- `clearClipboardDelayMs`
 
-## v2 更新
+> 如果某项在 Wox 设置页留空，插件会回退读取 `config.json`。
 
-当前版本已经加入以下增强：
+## `config.json`（兼容回退）
 
-- `plugin.json` 支持 `zh_CN` / `en_US` i18n
-- Preview 分块展示，更适合查看条目详情
-- 默认动作带兜底逻辑：优先复制用户名，其次 URL，最后 UUID
-- 支持显示匹配字段：`matchedField` / `matchedValue`
-- 支持为 `CustomFields` 动态生成“复制字段”动作
-- 支持密码复制后自动清空剪贴板
-- 文档与代码行为已统一
-
-> 关于 OTP：如果你的后端接口没有返回 OTP，插件本身无法凭空生成或读取 OTP。当前插件只能展示和复制接口已经返回的字段；如果未来接口能返回 OTP 或其他动态字段，它们会自动显示在 Preview 中，并且 `CustomFields` 中的字段会自动支持复制。
-
-## 功能说明
-
-- 使用 `GET /search?term=...` 搜索远程条目
-- 支持 `Authorization: Bearer <token>`
-- 列表中展示搜索结果
-- Preview 中展示条目详情
-- 动态展示 `Notes`
-- 动态展示 `CustomFields`
-- 自动展示返回结果中的其他额外字段
-- **Enter** 默认复制用户名；如果用户名为空，则自动回退为复制 URL；如果 URL 也为空，则复制 UUID
-- **Ctrl+Enter** 根据条目 UUID 请求密码并复制到剪贴板
-- 支持额外动作：复制 UUID、复制 URL、复制详情、复制自定义字段
-
-## 快捷键与默认动作
-
-在 Wox 中输入：
-
-```text
-kp 关键词
-```
-
-选中某个条目后：
-
-- `Enter`：默认复制用户名
-- 如果没有用户名：自动复制 URL
-- 如果没有 URL：自动复制 UUID
-- `Ctrl+Enter`：获取密码并复制
-- 其他动作：
-  - 复制 UUID
-  - 复制 URL
-  - 复制详情
-  - 复制某个自定义字段
-
-## 配置方式
-
-1. 将 `config.json.example` 复制为 `config.json`
-2. 按你的服务地址和 Token 修改配置
-
-示例：
+将 `config.json.example` 复制为 `config.json`：
 
 ```json
 {
   "baseUrl": "https://127.0.0.1:8443",
-  "token": "your-bearer-token",
+  "token": "replace-with-your-bearer-token",
   "searchPath": "/search",
   "passwordPathTemplate": "/entries/{uuid}/password",
   "searchQueryParam": "term",
@@ -82,196 +47,96 @@ kp 关键词
   "maxResults": 20,
   "rejectUnauthorized": true,
   "clearClipboardAfterCopyPassword": true,
-  "clearClipboardDelayMs": 10000,
-  "autoCopySingleCustomField": false
+  "clearClipboardDelayMs": 10000
 }
 ```
 
-### 配置项说明
+## 使用方式
 
-- `baseUrl`：接口基础地址，例如 `https://127.0.0.1:8443`
-- `token`：Bearer Token
-- `searchPath`：搜索接口路径，默认 `/search`
-- `passwordPathTemplate`：按 UUID 获取密码的接口路径模板，默认 `/entries/{uuid}/password`
-- `searchQueryParam`：搜索关键字参数名，默认 `term`
-- `timeoutMs`：请求超时时间，单位毫秒
-- `maxResults`：最多展示多少条结果
-- `rejectUnauthorized`：是否校验证书；如果本地开发使用自签名证书，可临时设为 `false`
-- `clearClipboardAfterCopyPassword`：复制密码后是否自动清空剪贴板
-- `clearClipboardDelayMs`：自动清空剪贴板延迟时间，单位毫秒
-- `autoCopySingleCustomField`：预留配置，当前仅用于后续扩展策略；现在所有返回的自定义字段都会生成复制动作
-
-## 搜索接口
-
-插件会调用：
+在 Wox 输入：
 
 ```text
-GET {baseUrl}{searchPath}?{searchQueryParam}={search}
-Authorization: Bearer {token}
+kp 关键词
 ```
 
-例如：
+选中结果后：
 
-```text
-GET https://127.0.0.1:8443/search?term=123
-Authorization: Bearer xxxxx
-```
+- `Enter`：复制用户名（无用户名则回退 URL，再回退 UUID）
+- `Ctrl+Enter`：请求密码并复制
+- 其他动作：复制 UUID / URL / 详情 / 自定义字段
 
-### 搜索返回格式
+## 结果与 Preview
 
-支持两种格式。
+- 列表副标题会展示 User、URL、Group、Notes 摘要、匹配字段、字段数量
+- Preview 分块展示：基本信息 / Notes / Custom Fields / Extra Fields
 
-### 格式 1：直接返回数组
+## 排查 `fetch failed` / 请求失败
+
+当前版本已改为 Node 原生 `http/https.request`，不再依赖 `fetch` 运行时行为。
+
+若仍失败，请按以下顺序排查：
+
+1. **确认最终 URL 是否正确**
+   - `baseUrl`、`searchPath`、`searchQueryParam` 组合后是否符合你的后端
+   - 注意路径前后斜杠
+2. **确认 TLS 选项是否匹配服务证书**
+   - 自签名证书调试时可将 `rejectUnauthorized=false`
+   - 生产环境建议开启 `rejectUnauthorized=true`
+3. **确认超时设置**
+   - 将 `timeoutMs` 适当调大（如 8000 或 10000）
+4. **确认认证信息有效**
+   - `token` 正确且仍有效
+
+当请求失败时：
+
+- 结果会显示：错误信息 + URL + timeout + TLS 校验状态 + HTTP 状态（若有）
+- 动作中可点击 **Copy diagnostics** 复制完整诊断（不会包含 token）
+- 插件日志也会写入同样的诊断上下文
+
+## 接口返回格式
+
+### 搜索接口
+
+支持：
+
+- 直接返回数组 `[]`
+- 或对象 `{ "items": [] }`
+
+条目常用字段示例：
 
 ```json
-[
-  {
-    "entryUuid": "xxxxxxx",
-    "title": "12306",
-    "userName": "demo_user",
-    "url": "https://12306.cn",
-    "notes": "测试备注",
-    "matchedField": "title",
-    "matchedValue": "12306",
-    "customFields": {
-      "remark": "vip"
-    }
+{
+  "entryUuid": "xxxx",
+  "title": "My Account",
+  "userName": "demo",
+  "url": "https://example.com",
+  "notes": "备注",
+  "matchedField": "title",
+  "matchedValue": "my",
+  "customFields": {
+    "otp": "******"
   }
-]
-```
-
-### 格式 2：对象中包含 `items`
-
-```json
-{
-  "items": [
-    {
-      "entryUuid": "xxxxxxx",
-      "title": "12306",
-      "userName": "demo_user",
-      "url": "https://12306.cn",
-      "notes": "测试备注",
-      "matchedField": "title",
-      "matchedValue": "12306",
-      "customFields": {
-        "remark": "vip"
-      }
-    }
-  ]
 }
 ```
 
-> 注意：搜索接口用于“按任意字段搜索条目”，主要返回条目摘要信息。密码不依赖搜索接口返回，而是通过单独的密码接口按 UUID 获取。
+### 密码接口
 
-## 密码接口
+支持：
 
-当你按下 `Ctrl+Enter` 时，插件会调用：
-
-```text
-GET {baseUrl}/entries/{uuid}/password
-Authorization: Bearer {token}
-```
-
-例如：
-
-```text
-GET https://127.0.0.1:8443/entries/xxxxxxx/password
-Authorization: Bearer xxxxx
-```
-
-### 密码返回格式
-
-支持以下两种：
-
-#### 格式 1：JSON 对象
-
-```json
-{
-  "password": "xxxxxx"
-}
-```
-
-#### 格式 2：纯字符串
-
-```text
-xxxxxx
-```
-
-## Preview 展示说明
-
-每个搜索结果的 Preview 会展示：
-
-- 基本信息
-  - UUID
-  - 用户名
-  - URL
-  - 数据库
-  - 分组路径
-  - 匹配字段
-- Notes
-- Custom Fields
-- 其他未预定义但接口返回的字段
-
-这样即使你的 API 后续新增字段，也可以直接在 Preview 中看到，不需要马上改代码。
-
-## 使用示例
-
-输入：
-
-```text
-kp 123
-```
-
-如果接口返回：
-
-```json
-{
-  "items": [
-    {
-      "entryUuid": "x123",
-      "title": "12306",
-      "userName": "demo_user",
-      "url": "https://12306.cn",
-      "notes": "铁路账号",
-      "matchedField": "title",
-      "matchedValue": "123",
-      "customFields": {
-        "remark": "常用"
-      }
-    }
-  ]
-}
-```
-
-那么你可以：
-
-- 在列表中看到 `12306`
-- 在副标题中看到用户名、URL、备注、匹配信息等摘要
-- 在 Preview 中看到完整详情
-- 按 `Enter` 复制用户名
-- 按 `Ctrl+Enter` 获取并复制密码
-- 在动作中复制某个自定义字段
+- JSON：`{"password":"..."}`
+- 纯文本：`...`
 
 ## 依赖与运行
-
-安装依赖：
 
 ```bash
 npm install
 ```
 
-这个项目使用纯 JavaScript，不需要额外 TypeScript 编译步骤。
+该项目为纯 JavaScript，无需编译步骤。
 
 ## 注意事项
 
-- `config.json` 不会提交到仓库，请自行创建
-- 如果本地 HTTPS 服务使用自签名证书，开发阶段可将 `rejectUnauthorized` 设为 `false`
-- 当前剪贴板实现依赖 Windows 的 `clip.exe`，因此此插件主要面向 Windows 使用
-- 搜索阶段只请求搜索接口，不会批量请求密码接口，这样响应会更快
-- 如果你的 API 不返回 OTP，插件也无法显示或复制 OTP；插件只能使用接口已经提供的数据
-
-## 参考
-
-本项目的 Wox 插件结构参考：
-
-- `qianlifeng/Wox.Plugin.Everything`
+- `config.json` 为本地配置文件，不应提交到仓库
+- 当前剪贴板实现依赖 Windows `clip.exe`
+- 搜索阶段不会批量请求密码接口
+- 插件不会输出 token 到 UI 或诊断日志
