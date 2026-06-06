@@ -16,6 +16,7 @@ const ERROR_ICON = {
 const EMPTY_ARRAY = []
 let cachedConfig = null
 let cachedConfigMtime = 0
+let pluginApi = null
 
 function getConfigPath() {
   return path.join(__dirname, "config.json")
@@ -66,6 +67,30 @@ function normalizeText(value) {
   return JSON.stringify(value)
 }
 
+function getEntryUuid(item) {
+  return normalizeText(item.entryUuid || item.Uuid || item.uuid)
+}
+
+function getTitle(item) {
+  return normalizeText(item.title || item.Title || "(untitled)")
+}
+
+function getUserName(item) {
+  return normalizeText(item.userName || item.UserName || item.username)
+}
+
+function getUrl(item) {
+  return normalizeText(item.url || item.URL)
+}
+
+function getDatabase(item) {
+  return normalizeText(item.database || item.Database)
+}
+
+function getGroupPath(item) {
+  return normalizeText(item.groupPath || item.GroupPath)
+}
+
 function formatNotes(item) {
   return normalizeText(item.notes || item.Notes)
 }
@@ -109,12 +134,12 @@ function collectExtraFields(item) {
 
 function buildPreview(item) {
   const lines = []
-  const title = normalizeText(item.title || item.Title || "(untitled)")
-  const entryUuid = normalizeText(item.entryUuid || item.Uuid || item.uuid)
-  const userName = normalizeText(item.userName || item.UserName || item.username)
-  const url = normalizeText(item.url || item.URL)
-  const database = normalizeText(item.database || item.Database)
-  const groupPath = normalizeText(item.groupPath || item.GroupPath)
+  const title = getTitle(item)
+  const entryUuid = getEntryUuid(item)
+  const userName = getUserName(item)
+  const url = getUrl(item)
+  const database = getDatabase(item)
+  const groupPath = getGroupPath(item)
   const notes = formatNotes(item)
   const customFieldLines = formatCustomFields(item)
   const extraFieldLines = collectExtraFields(item)
@@ -254,9 +279,9 @@ function copyToClipboard(text) {
 
 function createSubtitle(item) {
   const parts = []
-  const userName = normalizeText(item.userName || item.UserName || item.username)
-  const url = normalizeText(item.url || item.URL)
-  const groupPath = normalizeText(item.groupPath || item.GroupPath)
+  const userName = getUserName(item)
+  const url = getUrl(item)
+  const groupPath = getGroupPath(item)
   const notes = formatNotes(item)
   const customFieldLines = formatCustomFields(item)
 
@@ -269,10 +294,17 @@ function createSubtitle(item) {
   return parts.join(" | ")
 }
 
-function createResult(item, index, total, api, ctx) {
-  const title = normalizeText(item.title || item.Title || "(untitled)")
-  const entryUuid = normalizeText(item.entryUuid || item.Uuid || item.uuid)
-  const url = normalizeText(item.url || item.URL)
+async function logInfo(ctx, message) {
+  if (pluginApi) {
+    await pluginApi.Log(ctx, "Info", message)
+  }
+}
+
+function createResult(item, index, total, ctx) {
+  const title = getTitle(item)
+  const entryUuid = getEntryUuid(item)
+  const userName = getUserName(item)
+  const url = getUrl(item)
 
   return {
     Title: title,
@@ -286,23 +318,21 @@ function createResult(item, index, total, api, ctx) {
     ContextData: item,
     Actions: [
       {
-        Id: "copy-uuid",
-        Name: "Copy UUID",
+        Id: "copy-username",
+        Name: "复制用户名",
         IsDefault: true,
-        ContextData: { value: entryUuid },
+        ContextData: { value: userName, title },
         Action: async (_actionCtx, actionContext) => {
           if (!actionContext.ContextData.value) {
-            throw new Error("Entry UUID is empty")
+            throw new Error("UserName is empty")
           }
           await copyToClipboard(actionContext.ContextData.value)
-          if (api) {
-            await api.Log(ctx, "Info", `Copied UUID for ${title}`)
-          }
+          await logInfo(ctx, `Copied username for ${actionContext.ContextData.title}`)
         }
       },
       {
         Id: "copy-password",
-        Name: "Copy Password",
+        Name: "复制密码",
         Hotkey: "ctrl+enter",
         ContextData: { entryUuid, title },
         Action: async (_actionCtx, actionContext) => {
@@ -311,15 +341,24 @@ function createResult(item, index, total, api, ctx) {
           }
           const password = await fetchPassword(actionContext.ContextData.entryUuid)
           await copyToClipboard(password)
-          if (api) {
-            await api.Log(ctx, "Info", `Copied password for ${actionContext.ContextData.title}`)
+          await logInfo(ctx, `Copied password for ${actionContext.ContextData.title}`)
+        }
+      },
+      {
+        Id: "copy-uuid",
+        Name: "复制 UUID",
+        ContextData: { value: entryUuid },
+        Action: async (_actionCtx, actionContext) => {
+          if (!actionContext.ContextData.value) {
+            throw new Error("Entry UUID is empty")
           }
+          await copyToClipboard(actionContext.ContextData.value)
         }
       },
       ...(url
         ? [{
             Id: "copy-url",
-            Name: "Copy URL",
+            Name: "复制 URL",
             ContextData: { value: url },
             Action: async (_actionCtx, actionContext) => {
               await copyToClipboard(actionContext.ContextData.value)
@@ -328,7 +367,7 @@ function createResult(item, index, total, api, ctx) {
         : []),
       {
         Id: "copy-preview",
-        Name: "Copy Details",
+        Name: "复制详情",
         ContextData: { value: buildPreview(item) },
         Action: async (_actionCtx, actionContext) => {
           await copyToClipboard(actionContext.ContextData.value)
@@ -340,12 +379,13 @@ function createResult(item, index, total, api, ctx) {
 
 const plugin = {
   init: async (ctx, initParams) => {
+    pluginApi = initParams.API
     try {
       readConfigFile()
-      await initParams.API.Log(ctx, "Info", "Remote Search plugin initialized")
+      await pluginApi.Log(ctx, "Info", "Remote Search plugin initialized")
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      await initParams.API.Log(ctx, "Error", `Remote Search config error: ${message}`)
+      await pluginApi.Log(ctx, "Error", `Remote Search config error: ${message}`)
     }
   },
 
@@ -357,7 +397,7 @@ const plugin = {
 
     try {
       const items = await searchEntries(term)
-      return items.map((item, index, arr) => createResult(item, index, arr.length, ctx.API || null, ctx))
+      return items.map((item, index, arr) => createResult(item, index, arr.length, ctx))
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       return [createErrorResult(message)]
