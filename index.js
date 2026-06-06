@@ -413,49 +413,30 @@ function collectExtraFields(item) {
 function buildPreview(item) {
   const lines = []
   const title = getTitle(item)
-  const entryUuid = getEntryUuid(item)
+  const groupPath = getGroupPath(item)
   const userName = getUserName(item)
   const url = getUrl(item)
-  const database = getDatabase(item)
-  const groupPath = getGroupPath(item)
-  const matchedField = getMatchedField(item)
-  const matchedValue = getMatchedValue(item)
   const notes = formatNotes(item)
-  const customFieldLines = formatCustomFields(item)
-  const extraFieldLines = collectExtraFields(item)
+  const detailLines = []
 
   lines.push(`# ${title}`)
-  lines.push("")
-  lines.push("## 基本信息")
-  if (entryUuid) lines.push(`- UUID: ${entryUuid}`)
-  if (userName) lines.push(`- 用户名: ${userName}`)
-  if (url) lines.push(`- URL: ${url}`)
-  if (database) lines.push(`- 数据库: ${database}`)
-  if (groupPath) lines.push(`- 分组路径: ${groupPath}`)
-  if (matchedField || matchedValue) {
-    lines.push(`- 匹配信息: ${matchedField || "(unknown)"} = ${matchedValue || ""}`)
-  }
+  if (groupPath) detailLines.push(`- GroupPath: ${groupPath}`)
+  if (userName) detailLines.push(`- UserName: ${userName}`)
+  if (url) detailLines.push(`- URL: ${url}`)
 
-  if (notes) {
-    lines.push("")
-    lines.push("## Notes")
-    lines.push(notes)
-  }
-
-  if (customFieldLines.length > 0) {
-    lines.push("")
-    lines.push("## Custom Fields")
-    for (const line of customFieldLines) {
-      lines.push(`- ${line}`)
+  for (const [key, value] of Object.entries(getCustomFieldsObject(item))) {
+    const normalizedKey = normalizeText(key)
+    const normalizedValue = normalizeText(value)
+    if (normalizedKey && normalizedValue) {
+      detailLines.push(`- ${normalizedKey}: ${normalizedValue}`)
     }
   }
 
-  if (extraFieldLines.length > 0) {
+  if (notes) detailLines.push(`- Notes: ${notes}`)
+
+  if (detailLines.length > 0) {
     lines.push("")
-    lines.push("## Extra Fields")
-    for (const line of extraFieldLines) {
-      lines.push(`- ${line}`)
-    }
+    lines.push(...detailLines)
   }
 
   return lines.join("\n")
