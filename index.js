@@ -693,8 +693,8 @@ async function fetchOtp(ctx, entryUuid) {
   const url = new URL(otpPath, `${config.baseUrl}/`)
   const payload = await fetchRemotePayload("otp", url.toString(), config)
 
-  if (payload && typeof payload.OtpCurrent === "string" && payload.OtpCurrent) {
-    return payload.OtpCurrent
+  if (payload && typeof payload.otpCurrent === "string" && payload.otpCurrent) {
+    return payload.otpCurrent
   }
 
   throw new Error("OTP response does not contain OtpCurrent")
