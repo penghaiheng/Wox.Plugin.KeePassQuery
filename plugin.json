@@ -19,11 +19,202 @@
   "I18n": {
     "zh_CN": {
       "plugin_name": "KeePass 远程搜索",
-      "plugin_description": "通过 Bearer Token 认证的 HTTPS API 搜索 KeePass 条目"
+      "plugin_description": "通过鉴权 HTTPS API 搜索 KeePass 条目",
+      "settings_section_label": "远程接口设置",
+      "settings_section_tooltip": "优先读取此页面配置；留空时回退读取插件目录中的 config.json",
+      "setting_baseUrl_label": "Base URL",
+      "setting_baseUrl_tooltip": "接口基础地址，例如 https://127.0.0.1:8443",
+      "setting_token_label": "API 认证密钥",
+      "setting_token_tooltip": "访问远程 API 的认证密钥",
+      "setting_searchPath_label": "搜索路径",
+      "setting_searchPath_tooltip": "搜索接口路径，默认 /search",
+      "setting_passwordPathTemplate_label": "密码路径模板",
+      "setting_passwordPathTemplate_tooltip": "按 UUID 获取密码的路径模板，默认 /entries/{uuid}/password",
+      "setting_searchQueryParam_label": "搜索参数名",
+      "setting_searchQueryParam_tooltip": "搜索关键字参数名，默认 term",
+      "setting_timeoutMs_label": "超时时间(ms)",
+      "setting_timeoutMs_tooltip": "HTTP 请求超时时间（毫秒），默认 4000",
+      "setting_maxResults_label": "最大结果数",
+      "setting_maxResults_tooltip": "最多展示多少条搜索结果，默认 20",
+      "setting_rejectUnauthorized_label": "校验证书",
+      "setting_rejectUnauthorized_tooltip": "开启时严格校验证书；自签名证书调试时可关闭",
+      "setting_clearClipboardAfterCopyPassword_label": "复制密码后清空剪贴板",
+      "setting_clearClipboardAfterCopyPassword_tooltip": "开启后按 Ctrl+Enter 复制密码会在延迟后自动清空",
+      "setting_clearClipboardDelayMs_label": "清空延迟(ms)",
+      "setting_clearClipboardDelayMs_tooltip": "自动清空剪贴板延迟（毫秒），默认 10000"
     },
     "en_US": {
       "plugin_name": "KeePass Remote Search",
-      "plugin_description": "Search KeePass entries from a bearer-authenticated HTTPS API"
+      "plugin_description": "Search KeePass entries from a bearer-authenticated HTTPS API",
+      "settings_section_label": "Remote API Settings",
+      "settings_section_tooltip": "Values here take priority; empty values fall back to config.json in the plugin folder",
+      "setting_baseUrl_label": "Base URL",
+      "setting_baseUrl_tooltip": "Base API URL, e.g. https://127.0.0.1:8443",
+      "setting_token_label": "API Auth Key",
+      "setting_token_tooltip": "Authentication key used for API requests. It is never printed in diagnostics",
+      "setting_searchPath_label": "Search Path",
+      "setting_searchPath_tooltip": "Search endpoint path. Default: /search",
+      "setting_passwordPathTemplate_label": "Password Path Template",
+      "setting_passwordPathTemplate_tooltip": "Path template for fetching password by UUID. Default: /entries/{uuid}/password",
+      "setting_searchQueryParam_label": "Search Query Param",
+      "setting_searchQueryParam_tooltip": "Query parameter name for search term. Default: term",
+      "setting_timeoutMs_label": "Timeout (ms)",
+      "setting_timeoutMs_tooltip": "HTTP request timeout in milliseconds. Default: 4000",
+      "setting_maxResults_label": "Max Results",
+      "setting_maxResults_tooltip": "Maximum number of search results to show. Default: 20",
+      "setting_rejectUnauthorized_label": "Reject Unauthorized TLS",
+      "setting_rejectUnauthorized_tooltip": "Enable strict TLS cert validation. Disable only for self-signed development certs",
+      "setting_clearClipboardAfterCopyPassword_label": "Clear clipboard after copying password",
+      "setting_clearClipboardAfterCopyPassword_tooltip": "If enabled, password copied by Ctrl+Enter will be cleared after delay",
+      "setting_clearClipboardDelayMs_label": "Clear Delay (ms)",
+      "setting_clearClipboardDelayMs_tooltip": "Delay before clearing clipboard in milliseconds. Default: 10000"
     }
-  }
+  },
+  "SettingDefinitions": [
+    {
+      "Type": "head",
+      "Value": {
+        "Content": "i18n:settings_section_label",
+        "Tooltip": "i18n:settings_section_tooltip"
+      }
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "baseUrl",
+        "Label": "i18n:setting_baseUrl_label",
+        "Suffix": "",
+        "DefaultValue": "",
+        "Tooltip": "i18n:setting_baseUrl_tooltip",
+        "MaxLines": 1,
+        "Validators": []
+      }
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "token",
+        "Label": "i18n:setting_token_label",
+        "Suffix": "",
+        "DefaultValue": "",
+        "Tooltip": "i18n:setting_token_tooltip",
+        "MaxLines": 1,
+        "Validators": []
+      }
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "searchPath",
+        "Label": "i18n:setting_searchPath_label",
+        "Suffix": "",
+        "DefaultValue": "/search",
+        "Tooltip": "i18n:setting_searchPath_tooltip",
+        "MaxLines": 1,
+        "Validators": []
+      }
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "passwordPathTemplate",
+        "Label": "i18n:setting_passwordPathTemplate_label",
+        "Suffix": "",
+        "DefaultValue": "/entries/{uuid}/password",
+        "Tooltip": "i18n:setting_passwordPathTemplate_tooltip",
+        "MaxLines": 1,
+        "Validators": []
+      }
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "searchQueryParam",
+        "Label": "i18n:setting_searchQueryParam_label",
+        "Suffix": "",
+        "DefaultValue": "term",
+        "Tooltip": "i18n:setting_searchQueryParam_tooltip",
+        "MaxLines": 1,
+        "Validators": []
+      }
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "timeoutMs",
+        "Label": "i18n:setting_timeoutMs_label",
+        "Suffix": "",
+        "DefaultValue": "4000",
+        "Tooltip": "i18n:setting_timeoutMs_tooltip",
+        "MaxLines": 1,
+        "Validators": [
+          {
+            "Type": "is_number",
+            "Value": {
+              "AllowFloat": false,
+              "AllowNegative": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "maxResults",
+        "Label": "i18n:setting_maxResults_label",
+        "Suffix": "",
+        "DefaultValue": "20",
+        "Tooltip": "i18n:setting_maxResults_tooltip",
+        "MaxLines": 1,
+        "Validators": [
+          {
+            "Type": "is_number",
+            "Value": {
+              "AllowFloat": false,
+              "AllowNegative": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "Type": "checkbox",
+      "Value": {
+        "Key": "rejectUnauthorized",
+        "Label": "i18n:setting_rejectUnauthorized_label",
+        "DefaultValue": "true",
+        "Tooltip": "i18n:setting_rejectUnauthorized_tooltip"
+      }
+    },
+    {
+      "Type": "checkbox",
+      "Value": {
+        "Key": "clearClipboardAfterCopyPassword",
+        "Label": "i18n:setting_clearClipboardAfterCopyPassword_label",
+        "DefaultValue": "true",
+        "Tooltip": "i18n:setting_clearClipboardAfterCopyPassword_tooltip"
+      }
+    },
+    {
+      "Type": "textbox",
+      "Value": {
+        "Key": "clearClipboardDelayMs",
+        "Label": "i18n:setting_clearClipboardDelayMs_label",
+        "Suffix": "",
+        "DefaultValue": "10000",
+        "Tooltip": "i18n:setting_clearClipboardDelayMs_tooltip",
+        "MaxLines": 1,
+        "Validators": [
+          {
+            "Type": "is_number",
+            "Value": {
+              "AllowFloat": false,
+              "AllowNegative": false
+            }
+          }
+        ]
+      }
+    }
+  ]
 }
