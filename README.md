@@ -147,11 +147,9 @@ GET /entries/{uuid}/otp
 
 ## 依赖与运行
 
-```bash
-npm install
-```
+该项目为纯 JavaScript，一般无需编译步骤。
 
-该项目为纯 JavaScript，无需编译步骤。
+如果只是作为 Wox 插件使用，通常也无需额外执行 `npm install`。
 
 ## 注意事项
 
