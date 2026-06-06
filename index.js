@@ -244,6 +244,16 @@ function normalizeErrorCause(error) {
   return normalizeText(error.cause || error.code || error.errno || "") || undefined
 }
 
+function sanitizeUrlForDiagnostics(rawUrl) {
+  try {
+    const url = new URL(rawUrl)
+    url.search = ""
+    return url.toString()
+  } catch (_error) {
+    return normalizeText(rawUrl)
+  }
+}
+
 function buildDiagnosticText(diagnostic) {
   if (!diagnostic) {
     return ""
@@ -432,6 +442,18 @@ function requestText(url, token, timeoutMs, rejectUnauthorized) {
   const client = isHttps ? https : http
 
   return new Promise((resolve, reject) => {
+    let settled = false
+    const resolveOnce = (value) => {
+      if (settled) return
+      settled = true
+      resolve(value)
+    }
+    const rejectOnce = (error) => {
+      if (settled) return
+      settled = true
+      reject(error)
+    }
+
     const request = client.request(
       {
         protocol: urlObj.protocol,
@@ -454,7 +476,7 @@ function requestText(url, token, timeoutMs, rejectUnauthorized) {
 
         response.on("end", () => {
           const body = Buffer.concat(chunks).toString("utf8")
-          resolve({
+          resolveOnce({
             statusCode: response.statusCode || 0,
             statusMessage: response.statusMessage || "",
             contentType: normalizeText(response.headers["content-type"]),
@@ -468,7 +490,7 @@ function requestText(url, token, timeoutMs, rejectUnauthorized) {
       request.destroy(new Error(`Request timeout after ${timeoutMs}ms`))
     })
 
-    request.on("error", reject)
+    request.on("error", rejectOnce)
     request.end()
   })
 }
@@ -502,7 +524,8 @@ async function fetchRemotePayload(operation, url, config) {
   const baseDiagnostic = {
     operation,
     method: "GET",
-    url,
+    // Do not include query text in diagnostics to avoid exposing sensitive search input.
+    url: sanitizeUrlForDiagnostics(url),
     timeoutMs: config.timeoutMs,
     rejectUnauthorized: config.rejectUnauthorized
   }
