@@ -1,4 +1,4 @@
-# Wox.Plugin.RemoteSearch
+# Wox.Plugin.KeePassQuery
 
 一个基于 **Node.js / JavaScript** 的 Wox 插件：通过远程 API 搜索 KeePass 条目，并按 UUID 单独获取密码或 OTP。
 
