@@ -39,7 +39,7 @@
       "setting_rejectUnauthorized_label": "校验证书",
       "setting_rejectUnauthorized_tooltip": "开启时严格校验证书；自签名证书调试时可关闭",
       "setting_clearClipboardAfterCopyPassword_label": "复制密码后清空剪贴板",
-      "setting_clearClipboardAfterCopyPassword_tooltip": "开启后按 Ctrl+Enter 复制密码会在延迟后自动清空",
+      "setting_clearClipboardAfterCopyPassword_tooltip": "开启后按 Enter 复制密码会在延迟后自动清空",
       "setting_clearClipboardDelayMs_label": "清空延迟(ms)",
       "setting_clearClipboardDelayMs_tooltip": "自动清空剪贴板延迟（毫秒），默认 10000"
     },
@@ -65,7 +65,7 @@
       "setting_rejectUnauthorized_label": "Reject Unauthorized TLS",
       "setting_rejectUnauthorized_tooltip": "Enable strict TLS cert validation. Disable only for self-signed development certs",
       "setting_clearClipboardAfterCopyPassword_label": "Clear clipboard after copying password",
-      "setting_clearClipboardAfterCopyPassword_tooltip": "If enabled, password copied by Ctrl+Enter will be cleared after delay",
+      "setting_clearClipboardAfterCopyPassword_tooltip": "If enabled, password copied by Enter will be cleared after delay",
       "setting_clearClipboardDelayMs_label": "Clear Delay (ms)",
       "setting_clearClipboardDelayMs_tooltip": "Delay before clearing clipboard in milliseconds. Default: 10000"
     }

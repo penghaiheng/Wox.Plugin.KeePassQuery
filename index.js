@@ -685,6 +685,21 @@ async function fetchPassword(ctx, entryUuid) {
   throw new Error("Password response does not contain a password field")
 }
 
+async function fetchOtp(ctx, entryUuid) {
+  const config = await loadConfig(ctx)
+  validateConfig(config)
+
+  const otpPath = `/entries/${encodeURIComponent(entryUuid)}/otp`
+  const url = new URL(otpPath, `${config.baseUrl}/`)
+  const payload = await fetchRemotePayload("otp", url.toString(), config)
+
+  if (payload && typeof payload.OtpCurrent === "string" && payload.OtpCurrent) {
+    return payload.OtpCurrent
+  }
+
+  throw new Error("OTP response does not contain OtpCurrent")
+}
+
 function copyToClipboard(text) {
   return new Promise((resolve, reject) => {
     if (process.platform !== "win32") {
@@ -734,21 +749,25 @@ function createSubtitle(item) {
   return groupPath || userName || getMatchedValue(item)
 }
 
-function buildDefaultAction(userName, url, entryUuid, title) {
-  const fallbackValue = userName || url || entryUuid
-  const fallbackLabel = userName ? "复制用户名" : url ? "复制 URL" : "复制 UUID"
-
+function buildDefaultAction(entryUuid, title) {
   return {
-    Id: "default-copy",
-    Name: fallbackLabel,
+    Id: "copy-password",
+    Name: "复制密码",
     IsDefault: true,
-    ContextData: { value: fallbackValue, title, label: fallbackLabel },
+    ContextData: { entryUuid, title },
     Action: async (actionCtx, actionContext) => {
-      if (!actionContext.ContextData.value) {
-        throw new Error("No fallback value available")
+      if (!actionContext.ContextData.entryUuid) {
+        throw new Error("Entry UUID is empty")
       }
-      await copyToClipboard(actionContext.ContextData.value)
-      await logInfo(actionCtx, `${actionContext.ContextData.label}: ${actionContext.ContextData.title}`)
+      const password = await fetchPassword(actionCtx, actionContext.ContextData.entryUuid)
+      await copyToClipboard(password)
+
+      const config = await loadConfig(actionCtx)
+      if (config.clearClipboardAfterCopyPassword) {
+        scheduleClipboardClear(config.clearClipboardDelayMs)
+      }
+
+      await logInfo(actionCtx, `Copied password for ${actionContext.ContextData.title}`)
     }
   }
 }
@@ -792,25 +811,32 @@ function createResult(item, index, total) {
     },
     ContextData: item,
     Actions: [
-      buildDefaultAction(userName, url, entryUuid, title),
+      buildDefaultAction(entryUuid, title),
       {
-        Id: "copy-password",
-        Name: "复制密码",
+        Id: "copy-username",
+        Name: "复制用户名",
         Hotkey: "ctrl+enter",
+        ContextData: { userName, title },
+        Action: async (actionCtx, actionContext) => {
+          if (!actionContext.ContextData.userName) {
+            throw new Error("UserName is empty")
+          }
+          await copyToClipboard(actionContext.ContextData.userName)
+          await logInfo(actionCtx, `Copied userName for ${actionContext.ContextData.title}`)
+        }
+      },
+      {
+        Id: "copy-otp",
+        Name: "复制 OTP",
+        Hotkey: "ctrl+t",
         ContextData: { entryUuid, title },
         Action: async (actionCtx, actionContext) => {
           if (!actionContext.ContextData.entryUuid) {
             throw new Error("Entry UUID is empty")
           }
-          const password = await fetchPassword(actionCtx, actionContext.ContextData.entryUuid)
-          await copyToClipboard(password)
-
-          const config = await loadConfig(actionCtx)
-          if (config.clearClipboardAfterCopyPassword) {
-            scheduleClipboardClear(config.clearClipboardDelayMs)
-          }
-
-          await logInfo(actionCtx, `Copied password for ${actionContext.ContextData.title}`)
+          const otp = await fetchOtp(actionCtx, actionContext.ContextData.entryUuid)
+          await copyToClipboard(otp)
+          await logInfo(actionCtx, `Copied OTP for ${actionContext.ContextData.title}`)
         }
       },
       {
