@@ -26,6 +26,9 @@ const CONFIG_DEFAULTS = {
   clearClipboardAfterCopyPassword: true,
   clearClipboardDelayMs: 10000
 }
+const MIN_TIMEOUT_MS = 500
+const MIN_MAX_RESULTS = 1
+const MIN_CLIPBOARD_CLEAR_DELAY_MS = 500
 const MAX_DIAGNOSTIC_CHARS = 260
 
 const CONFIG_KEYS = Object.keys(CONFIG_DEFAULTS)
@@ -201,13 +204,9 @@ function mergeConfig(woxSettings, fileConfig) {
     }
   }
 
-  const timeoutMs = merged.timeoutMs !== undefined ? merged.timeoutMs : CONFIG_DEFAULTS.timeoutMs
-  const maxResults = merged.maxResults !== undefined ? merged.maxResults : CONFIG_DEFAULTS.maxResults
-  const clearClipboardDelayMs = merged.clearClipboardDelayMs !== undefined ? merged.clearClipboardDelayMs : CONFIG_DEFAULTS.clearClipboardDelayMs
-
-  merged.timeoutMs = Math.max(500, timeoutMs)
-  merged.maxResults = Math.max(1, maxResults)
-  merged.clearClipboardDelayMs = Math.max(500, clearClipboardDelayMs)
+  merged.timeoutMs = Math.max(MIN_TIMEOUT_MS, merged.timeoutMs)
+  merged.maxResults = Math.max(MIN_MAX_RESULTS, merged.maxResults)
+  merged.clearClipboardDelayMs = Math.max(MIN_CLIPBOARD_CLEAR_DELAY_MS, merged.clearClipboardDelayMs)
 
   return merged
 }
@@ -274,8 +273,9 @@ function createErrorResult(message, diagnosticText) {
             Id: "copy-diagnostics",
             Name: "Copy diagnostics",
             ContextData: { value: diagnosticText },
-            Action: async (_actionCtx, actionContext) => {
+            Action: async (actionCtx, actionContext) => {
               await copyToClipboard(actionContext.ContextData.value)
+              await logInfo(actionCtx, "Copied request diagnostics")
             }
           }
         ]
@@ -604,7 +604,7 @@ function scheduleClipboardClear(delayMs) {
       await copyToClipboard("")
     } catch (_error) {
     }
-  }, Math.max(500, delayMs))
+  }, Math.max(MIN_CLIPBOARD_CLEAR_DELAY_MS, delayMs))
 }
 
 function createSubtitle(item) {
