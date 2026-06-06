@@ -362,6 +362,14 @@ function getMatchedValue(item) {
   return normalizeText(item.matchedValue || item.MatchedValue)
 }
 
+function getMatchStart(item) {
+  return parseNumberValue(item.matchStart ?? item.MatchStart)
+}
+
+function getMatchLength(item) {
+  return parseNumberValue(item.matchLength ?? item.MatchLength)
+}
+
 function formatNotes(item) {
   return normalizeText(item.notes || item.Notes)
 }
@@ -410,6 +418,63 @@ function collectExtraFields(item) {
     .map(([key, value]) => `${key}: ${normalizeText(value)}`)
 }
 
+function normalizeFieldKey(value) {
+  return normalizeText(value).replace(/[^a-z0-9]/gi, "").toLowerCase()
+}
+
+function escapeMarkdownInlineCode(value) {
+  return normalizeText(value).replace(/`/g, "\\`")
+}
+
+function highlightMatchedText(value, item, fieldKey) {
+  const text = normalizeText(value)
+  if (!text) {
+    return ""
+  }
+
+  const matchedField = getMatchedField(item)
+  if (normalizeFieldKey(matchedField) !== normalizeFieldKey(fieldKey)) {
+    return text
+  }
+
+  const matchStart = getMatchStart(item)
+  const matchLength = getMatchLength(item)
+
+  if (
+    Number.isInteger(matchStart)
+    && Number.isInteger(matchLength)
+    && matchStart >= 0
+    && matchLength > 0
+    && matchStart < text.length
+  ) {
+    const safeEnd = Math.min(text.length, matchStart + matchLength)
+    return `${text.slice(0, matchStart)}\`${escapeMarkdownInlineCode(text.slice(matchStart, safeEnd))}\`${text.slice(safeEnd)}`
+  }
+
+  const matchedValue = getMatchedValue(item)
+  if (matchedValue) {
+    const index = text.indexOf(matchedValue)
+    if (index >= 0) {
+      return `${text.slice(0, index)}\`${escapeMarkdownInlineCode(matchedValue)}\`${text.slice(index + matchedValue.length)}`
+    }
+  }
+
+  return text
+}
+
+function formatPreviewField(label, value, item, fieldKey) {
+  const text = normalizeText(value)
+  if (!text) {
+    return ""
+  }
+
+  const isMatched = normalizeFieldKey(getMatchedField(item)) === normalizeFieldKey(fieldKey)
+  const displayLabel = isMatched ? `**${label}**` : label
+  const displayValue = highlightMatchedText(text, item, fieldKey)
+
+  return `- ${displayLabel}: ${displayValue}`
+}
+
 function buildPreview(item) {
   const lines = []
   const title = getTitle(item)
@@ -420,19 +485,23 @@ function buildPreview(item) {
   const detailLines = []
 
   lines.push(`# ${title}`)
-  if (groupPath) detailLines.push(`- GroupPath: ${groupPath}`)
-  if (userName) detailLines.push(`- UserName: ${userName}`)
-  if (url) detailLines.push(`- URL: ${url}`)
+
+  const standardFields = [
+    formatPreviewField("GroupPath", groupPath, item, "GroupPath"),
+    formatPreviewField("UserName", userName, item, "UserName"),
+    formatPreviewField("URL", url, item, "URL"),
+    formatPreviewField("Notes", notes, item, "Notes")
+  ].filter(Boolean)
+
+  detailLines.push(...standardFields)
 
   for (const [key, value] of Object.entries(getCustomFieldsObject(item))) {
     const normalizedKey = normalizeText(key)
     const normalizedValue = normalizeText(value)
     if (normalizedKey && normalizedValue) {
-      detailLines.push(`- ${normalizedKey}: ${normalizedValue}`)
+      detailLines.push(formatPreviewField(normalizedKey, normalizedValue, item, normalizedKey))
     }
   }
-
-  if (notes) detailLines.push(`- Notes: ${notes}`)
 
   if (detailLines.length > 0) {
     lines.push("")
@@ -655,23 +724,14 @@ function scheduleClipboardClear(delayMs) {
 }
 
 function createSubtitle(item) {
-  const parts = []
-  const userName = getUserName(item)
-  const url = getUrl(item)
   const groupPath = getGroupPath(item)
-  const notes = formatNotes(item)
-  const customFieldLines = formatCustomFields(item)
-  const matchedField = getMatchedField(item)
-  const matchedValue = getMatchedValue(item)
+  const userName = getUserName(item)
 
-  if (userName) parts.push(`User: ${userName}`)
-  if (url) parts.push(`URL: ${url}`)
-  if (groupPath) parts.push(`Group: ${groupPath}`)
-  if (notes) parts.push(`Notes: ${notes.replace(/\s+/g, " ").slice(0, 48)}`)
-  if (matchedField || matchedValue) parts.push(`Matched: ${matchedField || "?"}=${matchedValue || ""}`)
-  if (customFieldLines.length > 0) parts.push(`Fields: ${customFieldLines.length}`)
+  if (groupPath && userName) {
+    return `${groupPath} - ${userName}`
+  }
 
-  return parts.join(" | ")
+  return groupPath || userName || getMatchedValue(item)
 }
 
 function buildDefaultAction(userName, url, entryUuid, title) {
