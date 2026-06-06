@@ -26,6 +26,7 @@ const CONFIG_DEFAULTS = {
   clearClipboardAfterCopyPassword: true,
   clearClipboardDelayMs: 10000
 }
+const MAX_DIAGNOSTIC_SNIPPET_LENGTH = 260
 
 const CONFIG_KEYS = Object.keys(CONFIG_DEFAULTS)
 const STRING_KEYS = new Set([
@@ -196,9 +197,9 @@ function mergeConfig(woxSettings, fileConfig) {
     }
   }
 
-  merged.timeoutMs = Math.max(500, Number(merged.timeoutMs) || CONFIG_DEFAULTS.timeoutMs)
-  merged.maxResults = Math.max(1, Number(merged.maxResults) || CONFIG_DEFAULTS.maxResults)
-  merged.clearClipboardDelayMs = Math.max(500, Number(merged.clearClipboardDelayMs) || CONFIG_DEFAULTS.clearClipboardDelayMs)
+  merged.timeoutMs = Math.max(500, merged.timeoutMs || CONFIG_DEFAULTS.timeoutMs)
+  merged.maxResults = Math.max(1, merged.maxResults || CONFIG_DEFAULTS.maxResults)
+  merged.clearClipboardDelayMs = Math.max(500, merged.clearClipboardDelayMs || CONFIG_DEFAULTS.clearClipboardDelayMs)
 
   return merged
 }
@@ -466,7 +467,7 @@ function requestText(url, token, timeoutMs, rejectUnauthorized) {
 
 function parsePayloadFromResponse(response) {
   const bodyText = normalizeText(response.body)
-  const looksLikeJson = response.contentType.includes("application/json") || /^\s*[[{]/.test(bodyText)
+  const looksLikeJson = response.contentType.includes("application/json") || /^\s*[\[{]/.test(bodyText)
 
   if (!looksLikeJson) {
     return bodyText
@@ -480,7 +481,7 @@ function parsePayloadFromResponse(response) {
 }
 
 function compactResponseSnippet(value) {
-  return normalizeText(value).replace(/\s+/g, " ").trim().slice(0, 260)
+  return normalizeText(value).replace(/\s+/g, " ").trim().slice(0, MAX_DIAGNOSTIC_SNIPPET_LENGTH)
 }
 
 async function fetchRemotePayload(operation, url, config) {
