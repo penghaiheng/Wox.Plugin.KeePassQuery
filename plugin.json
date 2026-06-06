@@ -4,12 +4,12 @@
   "Name": "i18n:plugin_name",
   "Description": "i18n:plugin_description",
   "Author": "penghaiheng",
-  "Version": "0.2.0",
+  "Version": "0.2.1",
   "MinWoxVersion": "2.0.0",
   "Runtime": "nodejs",
   "Website": "https://github.com/penghaiheng/Wox.Plugin.RemoteSearch",
   "Entry": "index.js",
-  "Icon": "relative:images/app.png",
+  "Icon": "relative:images/app.svg",
   "Features": [
     {
       "Name": "ignoreAutoScore"
