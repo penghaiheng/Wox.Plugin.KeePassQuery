@@ -1,6 +1,6 @@
 # Wox.Plugin.RemoteSearch
 
-一个基于 **Node.js / JavaScript** 的 Wox 插件：通过远程 API 搜索 KeePass 条目，并按 UUID 单独获取密码。
+一个基于 **Node.js / JavaScript** 的 Wox 插件：通过远程 API 搜索 KeePass 条目，并按 UUID 单独获取密码或 OTP。
 
 ## 当前版本能力
 
@@ -8,9 +8,11 @@
 - 配置读取优先级：**Wox 设置页 > `config.json` > 内置默认值**
 - 搜索接口：`GET {baseUrl}{searchPath}?{searchQueryParam}=...`
 - 密码接口：`GET {baseUrl}{passwordPathTemplate}`（模板内 `{uuid}` 自动替换）
+- OTP 接口：`GET /entries/{uuid}/otp`
 - 动作：
   - `Enter`：复制用户名（缺失时回退 URL，再回退 UUID）
   - `Ctrl+Enter`：获取并复制密码
+  - `Ctrl+T`：获取并复制 OTP
   - 复制 UUID / URL / 详情 / 自定义字段
 - 可选：复制密码后延时清空剪贴板
 - 失败时结果中显示可操作诊断信息，并支持一键复制诊断
@@ -63,7 +65,24 @@ kp 关键词
 
 - `Enter`：复制用户名（无用户名则回退 URL，再回退 UUID）
 - `Ctrl+Enter`：请求密码并复制
+- `Ctrl+T`：请求 OTP 并复制当前验证码
 - 其他动作：复制 UUID / URL / 详情 / 自定义字段
+
+## OTP 接口说明
+
+获取某个条目的当前 OTP：
+
+```text
+GET /entries/{uuid}/otp
+```
+
+接口返回中可直接读取：
+
+```json
+{
+  "OtpCurrent": "123456"
+}
+```
 
 ## 结果与 Preview
 
