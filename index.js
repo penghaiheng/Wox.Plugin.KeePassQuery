@@ -13,10 +13,16 @@ const ERROR_ICON = {
   ImageData: "⚠️"
 }
 
+const INFO_ICON = {
+  ImageType: "emoji",
+  ImageData: "ℹ️"
+}
+
 const EMPTY_ARRAY = []
 let cachedConfig = null
 let cachedConfigMtime = 0
 let pluginApi = null
+let clearClipboardTimer = null
 
 function getConfigPath() {
   return path.join(__dirname, "config.json")
@@ -39,7 +45,10 @@ function readConfigFile() {
     searchQueryParam: String(parsed.searchQueryParam || "term"),
     timeoutMs: Number(parsed.timeoutMs || 4000),
     maxResults: Number(parsed.maxResults || 20),
-    rejectUnauthorized: parsed.rejectUnauthorized !== false
+    rejectUnauthorized: parsed.rejectUnauthorized !== false,
+    clearClipboardAfterCopyPassword: parsed.clearClipboardAfterCopyPassword !== false,
+    clearClipboardDelayMs: Number(parsed.clearClipboardDelayMs || 10000),
+    autoCopySingleCustomField: parsed.autoCopySingleCustomField === true
   }
   cachedConfigMtime = stat.mtimeMs
   return cachedConfig
@@ -91,17 +100,28 @@ function getGroupPath(item) {
   return normalizeText(item.groupPath || item.GroupPath)
 }
 
+function getMatchedField(item) {
+  return normalizeText(item.matchedField || item.MatchedField)
+}
+
+function getMatchedValue(item) {
+  return normalizeText(item.matchedValue || item.MatchedValue)
+}
+
 function formatNotes(item) {
   return normalizeText(item.notes || item.Notes)
 }
 
-function formatCustomFields(item) {
+function getCustomFieldsObject(item) {
   const customFields = item.customFields || item.CustomFields || {}
   if (!customFields || typeof customFields !== "object" || Array.isArray(customFields)) {
-    return EMPTY_ARRAY
+    return {}
   }
+  return customFields
+}
 
-  return Object.entries(customFields).map(([key, value]) => `${key}: ${normalizeText(value)}`)
+function formatCustomFields(item) {
+  return Object.entries(getCustomFieldsObject(item)).map(([key, value]) => `${key}: ${normalizeText(value)}`)
 }
 
 function collectExtraFields(item) {
@@ -124,7 +144,11 @@ function collectExtraFields(item) {
     "Notes",
     "notes",
     "CustomFields",
-    "customFields"
+    "customFields",
+    "MatchedField",
+    "matchedField",
+    "MatchedValue",
+    "matchedValue"
   ])
 
   return Object.entries(item)
@@ -140,17 +164,23 @@ function buildPreview(item) {
   const url = getUrl(item)
   const database = getDatabase(item)
   const groupPath = getGroupPath(item)
+  const matchedField = getMatchedField(item)
+  const matchedValue = getMatchedValue(item)
   const notes = formatNotes(item)
   const customFieldLines = formatCustomFields(item)
   const extraFieldLines = collectExtraFields(item)
 
   lines.push(`# ${title}`)
   lines.push("")
+  lines.push("## 基本信息")
   if (entryUuid) lines.push(`- UUID: ${entryUuid}`)
-  if (userName) lines.push(`- UserName: ${userName}`)
+  if (userName) lines.push(`- 用户名: ${userName}`)
   if (url) lines.push(`- URL: ${url}`)
-  if (database) lines.push(`- Database: ${database}`)
-  if (groupPath) lines.push(`- GroupPath: ${groupPath}`)
+  if (database) lines.push(`- 数据库: ${database}`)
+  if (groupPath) lines.push(`- 分组路径: ${groupPath}`)
+  if (matchedField || matchedValue) {
+    lines.push(`- 匹配信息: ${matchedField || "(unknown)"} = ${matchedValue || ""}`)
+  }
 
   if (notes) {
     lines.push("")
@@ -200,7 +230,12 @@ async function fetchJson(url, token, timeoutMs, rejectUnauthorized) {
       throw new Error(`HTTP ${response.status} ${response.statusText}`)
     }
 
-    return await response.json()
+    const contentType = response.headers.get("content-type") || ""
+    if (contentType.includes("application/json")) {
+      return await response.json()
+    }
+
+    return await response.text()
   } catch (error) {
     if (error && error.name === "AbortError") {
       throw new Error(`Request timeout after ${timeoutMs}ms`)
@@ -277,6 +312,19 @@ function copyToClipboard(text) {
   })
 }
 
+function scheduleClipboardClear(delayMs) {
+  if (clearClipboardTimer) {
+    clearTimeout(clearClipboardTimer)
+  }
+
+  clearClipboardTimer = setTimeout(async () => {
+    try {
+      await copyToClipboard("")
+    } catch (_error) {
+    }
+  }, Math.max(500, delayMs))
+}
+
 function createSubtitle(item) {
   const parts = []
   const userName = getUserName(item)
@@ -284,11 +332,14 @@ function createSubtitle(item) {
   const groupPath = getGroupPath(item)
   const notes = formatNotes(item)
   const customFieldLines = formatCustomFields(item)
+  const matchedField = getMatchedField(item)
+  const matchedValue = getMatchedValue(item)
 
   if (userName) parts.push(`User: ${userName}`)
   if (url) parts.push(`URL: ${url}`)
   if (groupPath) parts.push(`Group: ${groupPath}`)
   if (notes) parts.push(`Notes: ${notes.replace(/\s+/g, " ").slice(0, 48)}`)
+  if (matchedField || matchedValue) parts.push(`Matched: ${matchedField || "?"}=${matchedValue || ""}`)
   if (customFieldLines.length > 0) parts.push(`Fields: ${customFieldLines.length}`)
 
   return parts.join(" | ")
@@ -300,11 +351,54 @@ async function logInfo(ctx, message) {
   }
 }
 
+function buildDefaultAction(userName, url, entryUuid, title, ctx) {
+  const fallbackValue = userName || url || entryUuid
+  const fallbackLabel = userName ? "复制用户名" : url ? "复制 URL" : "复制 UUID"
+
+  return {
+    Id: "default-copy",
+    Name: fallbackLabel,
+    IsDefault: true,
+    ContextData: { value: fallbackValue, title, label: fallbackLabel },
+    Action: async (_actionCtx, actionContext) => {
+      if (!actionContext.ContextData.value) {
+        throw new Error("No fallback value available")
+      }
+      await copyToClipboard(actionContext.ContextData.value)
+      await logInfo(ctx, `${actionContext.ContextData.label}: ${actionContext.ContextData.title}`)
+    }
+  }
+}
+
+function buildCustomFieldActions(item, ctx) {
+  const config = readConfigFile()
+  const customFields = getCustomFieldsObject(item)
+  const entries = Object.entries(customFields)
+
+  if (entries.length === 0) {
+    return []
+  }
+
+  return entries
+    .filter(([key]) => key && normalizeText(customFields[key]))
+    .map(([key, value], index) => ({
+      Id: `copy-custom-field-${index}`,
+      Name: `复制字段: ${key}`,
+      ContextData: { key, value: normalizeText(value), title: getTitle(item) },
+      Action: async (_actionCtx, actionContext) => {
+        await copyToClipboard(actionContext.ContextData.value)
+        await logInfo(ctx, `Copied custom field ${actionContext.ContextData.key} for ${actionContext.ContextData.title}`)
+      }
+    }))
+    .slice(0, config.autoCopySingleCustomField ? 10 : 10)
+}
+
 function createResult(item, index, total, ctx) {
   const title = getTitle(item)
   const entryUuid = getEntryUuid(item)
   const userName = getUserName(item)
   const url = getUrl(item)
+  const config = readConfigFile()
 
   return {
     Title: title,
@@ -317,19 +411,7 @@ function createResult(item, index, total, ctx) {
     },
     ContextData: item,
     Actions: [
-      {
-        Id: "copy-username",
-        Name: "复制用户名",
-        IsDefault: true,
-        ContextData: { value: userName, title },
-        Action: async (_actionCtx, actionContext) => {
-          if (!actionContext.ContextData.value) {
-            throw new Error("UserName is empty")
-          }
-          await copyToClipboard(actionContext.ContextData.value)
-          await logInfo(ctx, `Copied username for ${actionContext.ContextData.title}`)
-        }
-      },
+      buildDefaultAction(userName, url, entryUuid, title, ctx),
       {
         Id: "copy-password",
         Name: "复制密码",
@@ -341,6 +423,9 @@ function createResult(item, index, total, ctx) {
           }
           const password = await fetchPassword(actionContext.ContextData.entryUuid)
           await copyToClipboard(password)
+          if (config.clearClipboardAfterCopyPassword) {
+            scheduleClipboardClear(config.clearClipboardDelayMs)
+          }
           await logInfo(ctx, `Copied password for ${actionContext.ContextData.title}`)
         }
       },
@@ -353,24 +438,28 @@ function createResult(item, index, total, ctx) {
             throw new Error("Entry UUID is empty")
           }
           await copyToClipboard(actionContext.ContextData.value)
+          await logInfo(ctx, `Copied UUID for ${title}`)
         }
       },
       ...(url
         ? [{
             Id: "copy-url",
             Name: "复制 URL",
-            ContextData: { value: url },
+            ContextData: { value: url, title },
             Action: async (_actionCtx, actionContext) => {
               await copyToClipboard(actionContext.ContextData.value)
+              await logInfo(ctx, `Copied URL for ${actionContext.ContextData.title}`)
             }
           }]
         : []),
+      ...buildCustomFieldActions(item, ctx),
       {
         Id: "copy-preview",
         Name: "复制详情",
-        ContextData: { value: buildPreview(item) },
+        ContextData: { value: buildPreview(item), title },
         Action: async (_actionCtx, actionContext) => {
           await copyToClipboard(actionContext.ContextData.value)
+          await logInfo(ctx, `Copied details for ${actionContext.ContextData.title}`)
         }
       }
     ]

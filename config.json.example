@@ -6,5 +6,8 @@
   "searchQueryParam": "term",
   "timeoutMs": 4000,
   "maxResults": 20,
-  "rejectUnauthorized": true
+  "rejectUnauthorized": true,
+  "clearClipboardAfterCopyPassword": true,
+  "clearClipboardDelayMs": 10000,
+  "autoCopySingleCustomField": false
 }

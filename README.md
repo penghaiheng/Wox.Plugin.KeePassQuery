@@ -9,6 +9,20 @@
 - 直接使用纯 JavaScript
 - 专注于 **远程搜索 + 按需获取密码**
 
+## v2 更新
+
+当前版本已经加入以下增强：
+
+- `plugin.json` 支持 `zh_CN` / `en_US` i18n
+- Preview 分块展示，更适合查看条目详情
+- 默认动作带兜底逻辑：优先复制用户名，其次 URL，最后 UUID
+- 支持显示匹配字段：`matchedField` / `matchedValue`
+- 支持为 `CustomFields` 动态生成“复制字段”动作
+- 支持密码复制后自动清空剪贴板
+- 文档与代码行为已统一
+
+> 关于 OTP：如果你的后端接口没有返回 OTP，插件本身无法凭空生成或读取 OTP。当前插件只能展示和复制接口已经返回的字段；如果未来接口能返回 OTP 或其他动态字段，它们会自动显示在 Preview 中，并且 `CustomFields` 中的字段会自动支持复制。
+
 ## 功能说明
 
 - 使用 `GET /search?term=...` 搜索远程条目
@@ -18,9 +32,9 @@
 - 动态展示 `Notes`
 - 动态展示 `CustomFields`
 - 自动展示返回结果中的其他额外字段
-- **Enter** 默认复制用户名
+- **Enter** 默认复制用户名；如果用户名为空，则自动回退为复制 URL；如果 URL 也为空，则复制 UUID
 - **Ctrl+Enter** 根据条目 UUID 请求密码并复制到剪贴板
-- 支持额外动作：复制 UUID、复制 URL、复制详情
+- 支持额外动作：复制 UUID、复制 URL、复制详情、复制自定义字段
 
 ## 快捷键与默认动作
 
@@ -32,12 +46,15 @@ kp 关键词
 
 选中某个条目后：
 
-- `Enter`：复制用户名
+- `Enter`：默认复制用户名
+- 如果没有用户名：自动复制 URL
+- 如果没有 URL：自动复制 UUID
 - `Ctrl+Enter`：获取密码并复制
 - 其他动作：
   - 复制 UUID
   - 复制 URL
   - 复制详情
+  - 复制某个自定义字段
 
 ## 配置方式
 
@@ -55,7 +72,10 @@ kp 关键词
   "searchQueryParam": "term",
   "timeoutMs": 4000,
   "maxResults": 20,
-  "rejectUnauthorized": true
+  "rejectUnauthorized": true,
+  "clearClipboardAfterCopyPassword": true,
+  "clearClipboardDelayMs": 10000,
+  "autoCopySingleCustomField": false
 }
 ```
 
@@ -69,6 +89,9 @@ kp 关键词
 - `timeoutMs`：请求超时时间，单位毫秒
 - `maxResults`：最多展示多少条结果
 - `rejectUnauthorized`：是否校验证书；如果本地开发使用自签名证书，可临时设为 `false`
+- `clearClipboardAfterCopyPassword`：复制密码后是否自动清空剪贴板
+- `clearClipboardDelayMs`：自动清空剪贴板延迟时间，单位毫秒
+- `autoCopySingleCustomField`：预留配置，当前仅用于后续扩展策略；现在所有返回的自定义字段都会生成复制动作
 
 ## 搜索接口
 
@@ -100,8 +123,9 @@ Authorization: Bearer xxxxx
     "userName": "demo_user",
     "url": "https://12306.cn",
     "notes": "测试备注",
+    "matchedField": "title",
+    "matchedValue": "12306",
     "customFields": {
-      "otp": "123456",
       "remark": "vip"
     }
   }
@@ -119,8 +143,10 @@ Authorization: Bearer xxxxx
       "userName": "demo_user",
       "url": "https://12306.cn",
       "notes": "测试备注",
+      "matchedField": "title",
+      "matchedValue": "12306",
       "customFields": {
-        "otp": "123456"
+        "remark": "vip"
       }
     }
   ]
@@ -167,11 +193,13 @@ xxxxxx
 
 每个搜索结果的 Preview 会展示：
 
-- UUID
-- UserName
-- URL
-- Database
-- GroupPath
+- 基本信息
+  - UUID
+  - 用户名
+  - URL
+  - 数据库
+  - 分组路径
+  - 匹配字段
 - Notes
 - Custom Fields
 - 其他未预定义但接口返回的字段
@@ -197,8 +225,9 @@ kp 123
       "userName": "demo_user",
       "url": "https://12306.cn",
       "notes": "铁路账号",
+      "matchedField": "title",
+      "matchedValue": "123",
       "customFields": {
-        "otp": "123456",
         "remark": "常用"
       }
     }
@@ -209,10 +238,11 @@ kp 123
 那么你可以：
 
 - 在列表中看到 `12306`
-- 在副标题中看到用户名、URL、备注等摘要
+- 在副标题中看到用户名、URL、备注、匹配信息等摘要
 - 在 Preview 中看到完整详情
 - 按 `Enter` 复制用户名
 - 按 `Ctrl+Enter` 获取并复制密码
+- 在动作中复制某个自定义字段
 
 ## 依赖与运行
 
@@ -230,6 +260,7 @@ npm install
 - 如果本地 HTTPS 服务使用自签名证书，开发阶段可将 `rejectUnauthorized` 设为 `false`
 - 当前剪贴板实现依赖 Windows 的 `clip.exe`，因此此插件主要面向 Windows 使用
 - 搜索阶段只请求搜索接口，不会批量请求密码接口，这样响应会更快
+- 如果你的 API 不返回 OTP，插件也无法显示或复制 OTP；插件只能使用接口已经提供的数据
 
 ## 参考
 

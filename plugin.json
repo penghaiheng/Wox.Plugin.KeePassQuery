@@ -1,10 +1,10 @@
 {
   "Id": "8db0f056-216c-48ad-bf57-d5a7e7b0f5a1",
   "TriggerKeywords": ["kp"],
-  "Name": "Remote Search",
-  "Description": "Search KeePass entries from a bearer-authenticated HTTPS API",
+  "Name": "i18n:plugin_name",
+  "Description": "i18n:plugin_description",
   "Author": "penghaiheng",
-  "Version": "0.1.0",
+  "Version": "0.2.0",
   "MinWoxVersion": "2.0.0",
   "Runtime": "nodejs",
   "Website": "https://github.com/penghaiheng/Wox.Plugin.RemoteSearch",
@@ -15,5 +15,15 @@
       "Name": "ignoreAutoScore"
     }
   ],
-  "SupportedOS": ["Windows"]
+  "SupportedOS": ["Windows"],
+  "I18n": {
+    "zh_CN": {
+      "plugin_name": "KeePass 远程搜索",
+      "plugin_description": "通过 Bearer Token 认证的 HTTPS API 搜索 KeePass 条目"
+    },
+    "en_US": {
+      "plugin_name": "KeePass Remote Search",
+      "plugin_description": "Search KeePass entries from a bearer-authenticated HTTPS API"
+    }
+  }
 }
