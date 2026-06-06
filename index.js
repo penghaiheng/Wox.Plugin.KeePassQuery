@@ -29,6 +29,7 @@ const CONFIG_DEFAULTS = {
 const MIN_TIMEOUT_MS = 500
 const MIN_MAX_RESULTS = 1
 const MIN_CLIPBOARD_CLEAR_DELAY_MS = 500
+const MAX_CUSTOM_FIELD_ACTIONS = 10
 const MAX_DIAGNOSTIC_CHARS = 260
 
 const CONFIG_KEYS = Object.keys(CONFIG_DEFAULTS)
@@ -285,7 +286,7 @@ function createErrorResult(message, diagnosticText) {
             ContextData: { value: diagnosticText },
             Action: async (actionCtx, actionContext) => {
               await copyToClipboard(actionContext.ContextData.value)
-              await logInfo(actionCtx, "Copied request diagnostics")
+              await logInfo(actionCtx, "Copied diagnostics")
             }
           }
         ]
@@ -688,7 +689,7 @@ function buildCustomFieldActions(item) {
         await logInfo(actionCtx, `Copied custom field ${actionContext.ContextData.key} for ${actionContext.ContextData.title}`)
       }
     }))
-    .slice(0, 10)
+    .slice(0, MAX_CUSTOM_FIELD_ACTIONS)
 }
 
 function createResult(item, index, total) {
