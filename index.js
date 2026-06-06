@@ -15,12 +15,12 @@ const ERROR_ICON = {
 }
 
 const CONFIG_DEFAULTS = {
-  baseUrl: "",
+  baseUrl: "https://127.0.0.1:19456",
   token: "",
   searchPath: "/search",
   passwordPathTemplate: "/entries/{uuid}/password",
   searchQueryParam: "term",
-  timeoutMs: 4000,
+  timeoutMs: 1000,
   maxResults: 20,
   rejectUnauthorized: true,
   clearClipboardAfterCopyPassword: true,
